@@ -42,14 +42,19 @@ export default function AddEntryScreen() {
   };
 
   const handleSave = async () => {
-    if (!imageUri || !address) {
-      Alert.alert('Error', 'You need to take a photo first.');
-      return;
-    }
+  if (!imageUri || !address) {
+    Alert.alert('Error', 'You need to take a photo first.');
+    return;
+  }
 
+  try {
     const entry = { id: uuidv4(), imageUri, address };
-    await saveEntry(entry);
-
+    await saveEntry(entry); // Save the entry first
+    
+    // Show success message after successful save
+    Alert.alert('Saved!', 'Your travel entry has been saved successfully.');
+    
+    // Schedule notification
     await Notifications.scheduleNotificationAsync({
       content: {
         title: 'New Travel Entry Saved!',
@@ -57,10 +62,15 @@ export default function AddEntryScreen() {
       },
       trigger: null,
     });
-
+    
+    // Navigate back
     navigation.goBack();
-  };
-
+  } catch (error) {
+    console.error('Failed to save entry:', error);
+    Alert.alert('Error', 'Failed to save entry. Please try again.');
+  }
+};
+  
   return (
     <View style={themedStyles.container}>
       {imageUri ? (

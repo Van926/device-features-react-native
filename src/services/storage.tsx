@@ -1,7 +1,6 @@
+
 // src/services/storage.ts
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const STORAGE_KEY = 'entries';
 
 export interface Entry {
   id: string;
@@ -9,25 +8,27 @@ export interface Entry {
   address: string;
 }
 
+const STORAGE_KEY = 'entries';
+
 export const getEntries = async (): Promise<Entry[]> => {
-  try {
-    const data = await AsyncStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : [];
-  } catch (error) {
-    console.error('Failed to load entries:', error);
-    return [];
-  }
+  const data = await AsyncStorage.getItem(STORAGE_KEY);
+  return data ? JSON.parse(data) : [];
 };
 
+// In src/services/storage.ts
 export const saveEntry = async (entry: Entry): Promise<void> => {
   try {
     const entries = await getEntries();
+    console.log('Current entries before save:', entries); // Debug log
     const updated = [...entries, entry];
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    console.log('Entry saved successfully:', entry); // Debug log
   } catch (error) {
-    console.error('Failed to save entry:', error);
+    console.error('Error saving entry:', error);
+    throw error; // Re-throw to handle in calling function
   }
 };
+
 
 export const removeEntry = async (id: string): Promise<void> => {
   try {
