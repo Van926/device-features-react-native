@@ -5,8 +5,8 @@ export const DefaultTheme = {
     card: '#f9f9f9',
     text: '#333333',
     border: '#e0e0e0',
-    error: '#e74c3c',
-    success: '#2ecc71',
+    error: 'red',
+    success: 'green',
   };
   
   export const DarkTheme = {
