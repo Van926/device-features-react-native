@@ -1,26 +1,24 @@
 // src/screens/AddEntryScreen.tsx
 import React, { useEffect, useState } from 'react';
-import { View, Button, Image, Text, StyleSheet, Alert } from 'react-native';
+import {
+  View, Text, Button, Image, Alert, StyleSheet, TouchableOpacity
+} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation } from '@react-navigation/native';
 import * as Notifications from 'expo-notifications';
+import { useNavigation } from '@react-navigation/native';
 import { reverseGeocodeAsync } from '../utils/geocode';
+import { saveEntry } from '../services/storage';
 import { useTheme } from '../context/ThemeContext';
 import { v4 as uuidv4 } from 'uuid';
-
-interface Entry {
-  id: string;
-  imageUri: string;
-  address: string;
-}
 
 export default function AddEntryScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [address, setAddress] = useState<string>('');
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  const themedStyles = getStyles(isDark);
 
   useEffect(() => {
     requestPermissions();
@@ -32,7 +30,7 @@ export default function AddEntryScreen() {
     await Notifications.requestPermissionsAsync();
   };
 
-  const pickImage = async () => {
+  const takePhoto = async () => {
     const result = await ImagePicker.launchCameraAsync({ quality: 0.7 });
     if (!result.canceled) {
       const uri = result.assets[0].uri;
@@ -43,16 +41,14 @@ export default function AddEntryScreen() {
     }
   };
 
-  const saveEntry = async () => {
+  const handleSave = async () => {
     if (!imageUri || !address) {
       Alert.alert('Error', 'You need to take a photo first.');
       return;
     }
 
-    const entry: Entry = { id: uuidv4(), imageUri, address };
-    const existing = await AsyncStorage.getItem('entries');
-    const updated = existing ? [...JSON.parse(existing), entry] : [entry];
-    await AsyncStorage.setItem('entries', JSON.stringify(updated));
+    const entry = { id: uuidv4(), imageUri, address };
+    await saveEntry(entry);
 
     await Notifications.scheduleNotificationAsync({
       content: {
@@ -66,22 +62,55 @@ export default function AddEntryScreen() {
   };
 
   return (
-    <View style={[styles.container, theme === 'dark' && styles.dark]}>
+    <View style={themedStyles.container}>
       {imageUri ? (
-        <Image source={{ uri: imageUri }} style={styles.image} />
+        <Image source={{ uri: imageUri }} style={themedStyles.image} />
       ) : (
-        <Text style={styles.text}>No image selected</Text>
+        <Text style={themedStyles.text}>No image selected</Text>
       )}
-      <Text style={styles.text}>{address || 'Address will appear here'}</Text>
-      <Button title="Take Photo" onPress={pickImage} />
-      <Button title="Save Entry" onPress={saveEntry} disabled={!imageUri || !address} />
+      <Text style={themedStyles.text}>{address || 'Address will appear here'}</Text>
+
+      <TouchableOpacity onPress={takePhoto} style={themedStyles.button}>
+        <Text style={themedStyles.buttonText}>Take Photo</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity onPress={handleSave} style={[themedStyles.button, !imageUri && themedStyles.disabled]}>
+        <Text style={themedStyles.buttonText}>Save Entry</Text>
+      </TouchableOpacity>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, alignItems: 'center' },
-  dark: { backgroundColor: '#121212' },
-  text: { marginVertical: 10, color: '#888' },
-  image: { width: '100%', height: 300, borderRadius: 10, marginBottom: 20 },
-});
+const getStyles = (isDark: boolean) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      padding: 16,
+      alignItems: 'center',
+      backgroundColor: isDark ? '#121212' : '#fff',
+    },
+    text: {
+      marginVertical: 10,
+      color: isDark ? '#ccc' : '#333',
+    },
+    image: {
+      width: '100%',
+      height: 300,
+      borderRadius: 10,
+      marginBottom: 20,
+    },
+    button: {
+      backgroundColor: isDark ? '#444' : '#ccc',
+      paddingVertical: 12,
+      paddingHorizontal: 20,
+      borderRadius: 8,
+      marginTop: 10,
+    },
+    buttonText: {
+      color: isDark ? '#fff' : '#000',
+      fontWeight: 'bold',
+    },
+    disabled: {
+      opacity: 0.6,
+    },
+  });

@@ -1,60 +1,59 @@
 // src/screens/HomeScreen.tsx
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, Image, Button, StyleSheet, TouchableOpacity } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  View, Text, FlatList, Image, TouchableOpacity, StyleSheet
+} from 'react-native';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
-
-interface Entry {
-  id: string;
-  imageUri: string;
-  address: string;
-}
+import { getEntries, removeEntry } from '../services/storage';
 
 export default function HomeScreen() {
-  const [entries, setEntries] = useState<Entry[]>([]);
+  const [entries, setEntries] = useState([]);
   const isFocused = useIsFocused();
   const navigation = useNavigation();
   const { theme, toggleTheme } = useTheme();
 
   const loadEntries = async () => {
-    const data = await AsyncStorage.getItem('entries');
-    if (data) {
-      setEntries(JSON.parse(data));
-    } else {
-      setEntries([]);
-    }
+    const data = await getEntries();
+    setEntries(data);
   };
 
-  const removeEntry = async (id: string) => {
-    const updated = entries.filter(e => e.id !== id);
-    setEntries(updated);
-    await AsyncStorage.setItem('entries', JSON.stringify(updated));
+  const handleRemove = async (id: string) => {
+    await removeEntry(id);
+    loadEntries();
   };
 
   useEffect(() => {
     if (isFocused) loadEntries();
   }, [isFocused]);
 
+  const isDark = theme === 'dark';
+  const themedStyles = getStyles(isDark);
+
   return (
-    <View style={[styles.container, theme === 'dark' && styles.dark]}>
-      <View style={styles.header}>
-        <Button title="Add Entry" onPress={() => navigation.navigate('AddEntry' as never)} />
-        <Button title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'} onPress={toggleTheme} />
+    <View style={themedStyles.container}>
+      <View style={themedStyles.header}>
+        <TouchableOpacity style={themedStyles.button} onPress={() => navigation.navigate('AddEntry' as never)}>
+          <Text style={themedStyles.buttonText}>Add Entry</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={themedStyles.button} onPress={toggleTheme}>
+          <Text style={themedStyles.buttonText}>{isDark ? 'Light Mode' : 'Dark Mode'}</Text>
+        </TouchableOpacity>
       </View>
 
       {entries.length === 0 ? (
-        <Text style={styles.noEntryText}>No Entries yet</Text>
+        <Text style={themedStyles.noEntryText}>No Entries yet</Text>
       ) : (
         <FlatList
           data={entries}
           keyExtractor={item => item.id}
           renderItem={({ item }) => (
-            <View style={styles.entry}>
-              <Image source={{ uri: item.imageUri }} style={styles.image} />
-              <Text style={styles.address}>{item.address}</Text>
-              <TouchableOpacity onPress={() => removeEntry(item.id)} style={styles.removeBtn}>
-                <Text style={styles.removeText}>Remove</Text>
+            <View style={themedStyles.entry}>
+              <Image source={{ uri: item.imageUri }} style={themedStyles.image} />
+              <Text style={themedStyles.text}>{item.address}</Text>
+              <TouchableOpacity onPress={() => handleRemove(item.id)} style={themedStyles.removeButton}>
+                <Text style={themedStyles.removeText}>Remove</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -64,14 +63,26 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: '#fff' },
-  dark: { backgroundColor: '#121212' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
-  noEntryText: { textAlign: 'center', fontSize: 18, marginTop: 50 },
-  entry: { marginBottom: 16 },
-  image: { width: '100%', height: 200, borderRadius: 10 },
-  address: { marginTop: 8 },
-  removeBtn: { marginTop: 5, backgroundColor: '#ff5c5c', padding: 5, borderRadius: 5 },
-  removeText: { color: '#fff', textAlign: 'center' }
-});
+const getStyles = (isDark: boolean) =>
+  StyleSheet.create({
+    container: { flex: 1, padding: 16, backgroundColor: isDark ? '#121212' : '#fff' },
+    header: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
+    button: {
+      backgroundColor: isDark ? '#333' : '#ddd',
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: 5,
+    },
+    buttonText: { color: isDark ? '#fff' : '#000', fontWeight: 'bold' },
+    noEntryText: { textAlign: 'center', fontSize: 18, color: isDark ? '#ccc' : '#444' },
+    entry: { marginBottom: 16 },
+    image: { width: '100%', height: 200, borderRadius: 10 },
+    text: { marginTop: 8, color: isDark ? '#ccc' : '#222' },
+    removeButton: {
+      marginTop: 5,
+      backgroundColor: isDark ? '#ff6b6b' : '#ff5c5c',
+      padding: 5,
+      borderRadius: 5,
+    },
+    removeText: { color: '#fff', textAlign: 'center' },
+  });
