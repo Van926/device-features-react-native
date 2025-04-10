@@ -8,27 +8,29 @@ export interface Entry {
   address: string;
 }
 
-const STORAGE_KEY = 'entries';
+const STORAGE_KEY = 'travel_entries'; // Changed to more specific key
 
 export const getEntries = async (): Promise<Entry[]> => {
-  const data = await AsyncStorage.getItem(STORAGE_KEY);
-  return data ? JSON.parse(data) : [];
+  try {
+    const data = await AsyncStorage.getItem(STORAGE_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch (error) {
+    console.error('Error getting entries:', error);
+    return [];
+  }
 };
 
-// In src/services/storage.ts
 export const saveEntry = async (entry: Entry): Promise<void> => {
   try {
     const entries = await getEntries();
-    console.log('Current entries before save:', entries); // Debug log
     const updated = [...entries, entry];
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     console.log('Entry saved successfully:', entry); // Debug log
   } catch (error) {
     console.error('Error saving entry:', error);
-    throw error; // Re-throw to handle in calling function
+    throw error; // Re-throw to handle in UI
   }
 };
-
 
 export const removeEntry = async (id: string): Promise<void> => {
   try {

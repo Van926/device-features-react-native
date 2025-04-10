@@ -11,6 +11,7 @@ import { reverseGeocodeAsync } from '../utils/geocode';
 import { saveEntry } from '../services/storage';
 import { useTheme } from '../context/ThemeContext';
 import { v4 as uuidv4 } from 'uuid';
+import 'react-native-get-random-values';
 
 export default function AddEntryScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
@@ -41,20 +42,28 @@ export default function AddEntryScreen() {
     }
   };
 
-  const handleSave = async () => {
+ const handleSave = async () => {
   if (!imageUri || !address) {
     Alert.alert('Error', 'You need to take a photo first.');
     return;
   }
 
   try {
-    const entry = { id: uuidv4(), imageUri, address };
-    await saveEntry(entry); // Save the entry first
-    
-    // Show success message after successful save
-    Alert.alert('Saved!', 'Your travel entry has been saved successfully.');
-    
-    // Schedule notification
+    console.log('Attempting to save entry...'); // Debug log
+    console.log('Image URI:', imageUri); // Debug log
+    console.log('Address:', address); // Debug log
+
+    const entry = {
+      id: uuidv4(),
+      imageUri: imageUri,
+      address: address
+    };
+
+    console.log('Entry object:', entry); // Debug log
+
+    await saveEntry(entry);
+    console.log('Entry saved successfully'); // Debug log
+
     await Notifications.scheduleNotificationAsync({
       content: {
         title: 'New Travel Entry Saved!',
@@ -62,12 +71,15 @@ export default function AddEntryScreen() {
       },
       trigger: null,
     });
-    
-    // Navigate back
+
+    Alert.alert('Success', 'Entry saved successfully!');
     navigation.goBack();
   } catch (error) {
-    console.error('Failed to save entry:', error);
-    Alert.alert('Error', 'Failed to save entry. Please try again.');
+    console.error('Full error:', error); // Debug log
+    Alert.alert(
+      'Save Failed',
+      `Could not save entry: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 };
   
