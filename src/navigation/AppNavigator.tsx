@@ -7,7 +7,15 @@ const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => (
   <NavigationContainer>
-    <Stack.Navigator>
+    <Stack.Navigator screenOptions={{
+        headerStyle: {
+          backgroundColor:'orange',
+        },
+        headerTintColor: '#fff',
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      }}>
       <Stack.Screen name="Home" component={HomeScreen} />
       <Stack.Screen name="AddEntry" component={AddEntryScreen} />
     </Stack.Navigator>

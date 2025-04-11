@@ -1,5 +1,4 @@
 
-// src/services/storage.ts
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface Entry {
@@ -8,7 +7,7 @@ export interface Entry {
   address: string;
 }
 
-const STORAGE_KEY = 'travel_entries'; // Changed to more specific key
+const STORAGE_KEY = 'travel_entries'; 
 
 export const getEntries = async (): Promise<Entry[]> => {
   try {
@@ -25,10 +24,8 @@ export const saveEntry = async (entry: Entry): Promise<void> => {
     const entries = await getEntries();
     const updated = [...entries, entry];
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    console.log('Entry saved successfully:', entry); // Debug log
   } catch (error) {
-    console.error('Error saving entry:', error);
-    throw error; // Re-throw to handle in UI
+    throw error; 
   }
 };
 

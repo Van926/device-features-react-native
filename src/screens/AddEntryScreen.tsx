@@ -1,104 +1,177 @@
-// src/screens/AddEntryScreen.tsx
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, Button, Image, Alert, StyleSheet, TouchableOpacity
+  View, Text, Image, Alert, StyleSheet, TouchableOpacity, Platform
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import * as Notifications from 'expo-notifications';
 import { useNavigation } from '@react-navigation/native';
 import { reverseGeocodeAsync } from '../utils/geocode';
 import { saveEntry } from '../services/storage';
 import { useTheme } from '../context/ThemeContext';
 import { v4 as uuidv4 } from 'uuid';
+import { Ionicons } from '@expo/vector-icons';
+import { sendLocalNotification } from '../services/notifications';
 import 'react-native-get-random-values';
 
 export default function AddEntryScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [address, setAddress] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(false);
   const navigation = useNavigation();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const themedStyles = getStyles(isDark);
 
   useEffect(() => {
-    requestPermissions();
+    (async () => {
+      await ImagePicker.requestCameraPermissionsAsync();
+      await Location.requestForegroundPermissionsAsync();
+    })();
   }, []);
 
-  const requestPermissions = async () => {
-    await ImagePicker.requestCameraPermissionsAsync();
-    await Location.requestForegroundPermissionsAsync();
-    await Notifications.requestPermissionsAsync();
-  };
-
   const takePhoto = async () => {
-    const result = await ImagePicker.launchCameraAsync({ quality: 0.7 });
-    if (!result.canceled) {
-      const uri = result.assets[0].uri;
-      setImageUri(uri);
-      const loc = await Location.getCurrentPositionAsync({});
-      const addr = await reverseGeocodeAsync(loc.coords.latitude, loc.coords.longitude);
-      setAddress(addr);
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        quality: 1,
+        allowsEditing: true,
+        aspect: [4, 3],
+      });
+      
+      if (!result.canceled) {
+        const uri = result.assets[0].uri;
+        setImageUri(uri);
+        
+        const loc = await Location.getCurrentPositionAsync({});
+        const addr = await reverseGeocodeAsync(loc.coords.latitude, loc.coords.longitude);
+        setAddress(addr);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to take photo or get location');
     }
   };
 
- const handleSave = async () => {
-  if (!imageUri || !address) {
-    Alert.alert('Error', 'You need to take a photo first.');
-    return;
-  }
+  const handleSave = async () => {
+    if (!imageUri || !address) {
+      Alert.alert('Error', 'Please take a photo first');
+      return;
+    }
 
-  try {
-    console.log('Attempting to save entry...'); // Debug log
-    console.log('Image URI:', imageUri); // Debug log
-    console.log('Address:', address); // Debug log
+    setIsLoading(true);
+    
+    try {
+      const entry = {
+        id: uuidv4(),
+        imageUri,
+        address
+      };
 
-    const entry = {
-      id: uuidv4(),
-      imageUri: imageUri,
-      address: address
-    };
+      await saveEntry(entry);
+      
+    
+      await sendLocalNotification(
+        'New Travel Entry Saved!',
+        `Location: ${address}`
+      );
 
-    console.log('Entry object:', entry); // Debug log
+      Alert.alert(
+        'Success',
+        'Your travel entry has been saved!',
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
+      );
+    } catch (error) {
+      Alert.alert(
+        'Save Failed',
+        error instanceof Error ? error.message : 'Failed to save entry'
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    await saveEntry(entry);
-    console.log('Entry saved successfully'); // Debug log
-
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: 'New Travel Entry Saved!',
-        body: address,
-      },
-      trigger: null,
-    });
-
-    Alert.alert('Success', 'Entry saved successfully!');
-    navigation.goBack();
-  } catch (error) {
-    console.error('Full error:', error); // Debug log
-    Alert.alert(
-      'Save Failed',
-      `Could not save entry: ${error instanceof Error ? error.message : String(error)}`
-    );
-  }
-};
-  
   return (
     <View style={themedStyles.container}>
-      {imageUri ? (
-        <Image source={{ uri: imageUri }} style={themedStyles.image} />
-      ) : (
-        <Text style={themedStyles.text}>No image selected</Text>
-      )}
-      <Text style={themedStyles.text}>{address || 'Address will appear here'}</Text>
+      <View style={themedStyles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons 
+            name="arrow-back" 
+            size={24} 
+            color={isDark ? '#fff' : '#000'} 
+          />
+        </TouchableOpacity>
+        <Text style={themedStyles.title}>New Travel Entry</Text>
+        <View style={{ width: 24 }} />
+      </View>
 
-      <TouchableOpacity onPress={takePhoto} style={themedStyles.button}>
-        <Text style={themedStyles.buttonText}>Take Photo</Text>
-      </TouchableOpacity>
+      <View style={themedStyles.content}>
+        {imageUri ? (
+          <View style={themedStyles.imageContainer}>
+            <Image 
+              source={{ uri: imageUri }} 
+              style={themedStyles.image} 
+              resizeMode="cover"
+            />
+          </View>
+        ) : (
+          <View style={themedStyles.placeholder}>
+            <Ionicons 
+              name="camera" 
+              size={48} 
+              color={isDark ? '#555' : '#ccc'} 
+            />
+            <Text style={themedStyles.placeholderText}>No photo taken yet</Text>
+          </View>
+        )}
 
-      <TouchableOpacity onPress={handleSave} style={[themedStyles.button, !imageUri && themedStyles.disabled]}>
-        <Text style={themedStyles.buttonText}>Save Entry</Text>
-      </TouchableOpacity>
+        <View style={themedStyles.addressContainer}>
+          <Ionicons 
+            name="location" 
+            size={20} 
+            color={isDark ? '#aaa' : '#666'} 
+          />
+          <Text style={themedStyles.addressText}>
+            {address || 'Address will appear here after taking photo'}
+          </Text>
+        </View>
+
+        <TouchableOpacity 
+          onPress={takePhoto} 
+          style={themedStyles.primaryButton}
+          disabled={isLoading}
+        >
+          <Ionicons 
+            name="camera" 
+            size={20} 
+            color="#fff" 
+            style={themedStyles.buttonIcon}
+          />
+          <Text style={themedStyles.primaryButtonText}>
+            {imageUri ? 'Retake Photo' : 'Take Photo'}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          onPress={handleSave} 
+          style={[
+            themedStyles.secondaryButton, 
+            (!imageUri || isLoading) && themedStyles.disabledButton
+          ]}
+          disabled={!imageUri || isLoading}
+        >
+          {isLoading ? (
+            <Text style={themedStyles.secondaryButtonText}>Saving...</Text>
+          ) : (
+            <>
+              <Ionicons 
+                name="save" 
+                size={20} 
+                color={isDark ? '#fff' : '#6200ee'} 
+                style={themedStyles.buttonIcon}
+              />
+              <Text style={themedStyles.secondaryButtonText}>Save Entry</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -107,32 +180,105 @@ const getStyles = (isDark: boolean) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      padding: 16,
-      alignItems: 'center',
-      backgroundColor: isDark ? '#121212' : '#fff',
+      backgroundColor: isDark ? '#121212' : '#f5f5f5',
     },
-    text: {
-      marginVertical: 10,
-      color: isDark ? '#ccc' : '#333',
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: 16,
+      paddingTop: Platform.OS === 'ios' ? 50 : 16,
+      backgroundColor: isDark ? '#1e1e1e' : '#fff',
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? '#333' : '#e0e0e0',
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: isDark ? '#fff' : '#000',
+    },
+    content: {
+      flex: 1,
+      padding: 20,
+      alignItems: 'center',
+    },
+    imageContainer: {
+      width: '100%',
+      borderRadius: 12,
+      overflow: 'hidden',
+      marginBottom: 20,
+      elevation: 2,
+      shadowColor: isDark ? '#000' : '#aaa',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
     },
     image: {
       width: '100%',
       height: 300,
-      borderRadius: 10,
+    },
+    placeholder: {
+      width: '100%',
+      height: 300,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: isDark ? '#1e1e1e' : '#f0f0f0',
+      borderRadius: 12,
       marginBottom: 20,
     },
-    button: {
-      backgroundColor: isDark ? '#444' : '#ccc',
-      paddingVertical: 12,
-      paddingHorizontal: 20,
-      borderRadius: 8,
+    placeholderText: {
       marginTop: 10,
+      color: isDark ? '#777' : '#999',
+      fontSize: 16,
     },
-    buttonText: {
-      color: isDark ? '#fff' : '#000',
-      fontWeight: 'bold',
+    addressContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      width: '100%',
+      padding: 16,
+      backgroundColor: isDark ? '#1e1e1e' : '#fff',
+      borderRadius: 8,
+      marginBottom: 20,
     },
-    disabled: {
+    addressText: {
+      marginLeft: 10,
+      color: isDark ? '#ddd' : '#333',
+      fontSize: 14,
+      flexShrink: 1,
+    },
+    primaryButton: {
+      flexDirection: 'row',
+      backgroundColor: '#6200ee',
+      padding: 16,
+      borderRadius: 8,
+      width: '100%',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    primaryButtonText: {
+      color: '#fff',
+      fontWeight: '600',
+      fontSize: 16,
+    },
+    secondaryButton: {
+      flexDirection: 'row',
+      backgroundColor: isDark ? '#333' : '#e0e0e0',
+      padding: 16,
+      borderRadius: 8,
+      width: '100%',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    secondaryButtonText: {
+      color: isDark ? '#fff' : '#6200ee',
+      fontWeight: '600',
+      fontSize: 16,
+    },
+    disabledButton: {
       opacity: 0.6,
+    },
+    buttonIcon: {
+      marginRight: 8,
     },
   });

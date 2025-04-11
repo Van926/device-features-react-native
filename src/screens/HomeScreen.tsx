@@ -1,7 +1,6 @@
-// src/screens/HomeScreen.tsx
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, FlatList, Image, TouchableOpacity, StyleSheet, Platform
+  View, Text, FlatList, Image,Alert, TouchableOpacity, StyleSheet, Platform
 } from 'react-native';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { useTheme } from '../context/ThemeContext';
@@ -22,6 +21,8 @@ export default function HomeScreen() {
   const handleRemove = async (id: string) => {
     await removeEntry(id);
     loadEntries();
+    
+    Alert.alert('Entry removed successfuly')
   };
 
   useEffect(() => {
